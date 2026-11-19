@@ -66,14 +66,13 @@
          display:flex;align-items:center;justify-content:center;color:#E9C98F;cursor:pointer}
   .sound svg{width:20px;height:20px}
   .sound .wave{display:none}.sound.on .wave{display:block}.sound.on .mute{display:none}
-  .play{position:absolute;z-index:6;left:50%;top:50%;width:92px;height:92px;margin:-46px 0 0 -46px;border-radius:50%;display:flex;transition:opacity .4s,transform .4s;
-        border:1px solid rgba(216,183,135,.8);background:rgba(10,12,20,.4);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
-        align-items:center;justify-content:center;color:#E9C98F;cursor:pointer;animation:pulse 2s ease-in-out infinite}
-  .play svg{width:34px;height:34px;margin-left:4px}
-  @keyframes pulse{50%{transform:scale(1.07)}}
-  .play.hide{opacity:0;pointer-events:none}
-  .gate{position:absolute;inset:0;z-index:5;background:rgba(7,11,18,.35);transition:opacity .6s}
-  .gate.hide{opacity:0;pointer-events:none}
+  .sound{width:52px;height:52px;border-color:#E9C98F;background:rgba(216,183,135,.18)}
+  .sound svg{width:24px;height:24px}
+  .sound.nudge::before,.sound.nudge::after{content:"";position:absolute;inset:-1px;border-radius:50%;border:1.5px solid #E9C98F;animation:ripple 2.2s ease-out infinite}
+  .sound.nudge::after{animation-delay:1.1s}
+  .sound.nudge .mute{animation:nudge 2.2s ease-in-out infinite}
+  @keyframes ripple{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.9);opacity:0}}
+  @keyframes nudge{0%,70%,100%{transform:rotate(0)}76%{transform:rotate(-12deg)}84%{transform:rotate(10deg)}92%{transform:rotate(-6deg)}}
   @media (max-height:720px){h1{font-size:clamp(24px,7.2vw,34px);margin-bottom:14px}.btn{height:48px}.btn.tall{height:56px}.ui{padding-bottom:calc(12px + env(safe-area-inset-bottom))}}
   @media (prefers-reduced-motion:reduce){h1 .w>span,.btn,.stores{transition:none}}
 </style>
@@ -84,13 +83,13 @@
   <video id="loop" muted playsinline loop preload="auto">
     <source src="loop.mp4" type="video/mp4"><source src="loop.webm" type="video/webm">
   </video>
-  <video id="intro" muted playsinline preload="auto" poster="poster.jpg">
+  <video id="intro" muted playsinline autoplay preload="auto" poster="poster.jpg">
     <source src="intro.mp4" type="video/mp4"><source src="intro.webm" type="video/webm">
   </video>
   <canvas id="grain" width="160" height="284"></canvas>
   <div class="shade"></div>
 
-  <button class="sound" id="sound" type="button" aria-label="Үн">
+  <button class="sound nudge" id="sound" type="button" aria-label="Үн">
     <svg class="mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>
     <svg class="wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
   </button>
@@ -120,8 +119,6 @@
     </div>
     <p class="hint" id="hint"></p>
   </div>
-  <div class="gate" id="gate"></div>
-  <button class="play" id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button>
 </div>
 
 <audio id="aIntro" src="intro_sound.m4a" preload="auto"></audio>
@@ -194,21 +191,18 @@
   });
   // На всякий случай — показать интерфейс через 6 сек в любом случае
 
-  var playBtn = document.getElementById('play'), gate = document.getElementById('gate'), started = false;
+  var started = false;
+  intro.addEventListener('playing', function () { started = true; });
   intro.load(); loop.load();
-  function begin() {
-    if (started) return; started = true;
-    playBtn.classList.add('hide'); gate.classList.add('hide');
-    soundOn = true; soundBtn.classList.add('on');
-    intro.currentTime = 0;
-    var p = intro.play(); if (p && p.catch) p.catch(function () {});
-    aIntro.currentTime = 0; aIntro.volume = 1; aIntro.play().catch(function () {});
-    // разблокировать второй звук на iOS тем же нажатием
-    var pl = aLoop.play(); if (pl && pl.then) pl.then(function () { aLoop.pause(); aLoop.currentTime = 0; }).catch(function () {});
-    log('play_click');
+  var p0 = intro.play(); if (p0 && p0.catch) p0.catch(function () {});
+  // Если автозапуск заблокирован (режим энергосбережения) — первое касание запускает видео
+  function firstTouch() {
+    if (!started) intro.play().catch(function () {});
+    document.removeEventListener('touchstart', firstTouch); document.removeEventListener('click', firstTouch);
   }
-  playBtn.addEventListener('click', function (e) { e.stopPropagation(); begin(); });
-  gate.addEventListener('click', begin);
+  document.addEventListener('touchstart', firstTouch, { passive: true });
+  document.addEventListener('click', firstTouch);
+  setTimeout(function () { if (!started) showUI(); }, 2500);
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden && switched) loop.play().catch(function () {});
   });
@@ -233,15 +227,18 @@
   var aIntro = document.getElementById('aIntro'), aLoop = document.getElementById('aLoop');
   var soundBtn = document.getElementById('sound');
   function fadeIn(a) { a.volume = 0; var v = 0; var t = setInterval(function () { v += 0.1; a.volume = Math.min(1, v); if (v >= 1) clearInterval(t); }, 50); }
+  var unlocked = false;
   soundBtn.addEventListener('click', function () {
-    soundOn = !soundOn; soundBtn.classList.toggle('on', soundOn);
+    soundOn = !soundOn; soundBtn.classList.toggle('on', soundOn); soundBtn.classList.remove("nudge");
+    if (!unlocked) { unlocked = true; var u = aLoop.play(); if (u && u.then) u.then(function () { if (!(switched && soundOn)) aLoop.pause(); }).catch(function () {}); }
+    if (!started) intro.play().catch(function () {});
     if (soundOn) {
       log('sound_click');
-      if (!switched && !intro.ended) { aIntro.currentTime = intro.currentTime; fadeIn(aIntro); aIntro.play().catch(function () {}); }
-      else { fadeIn(aLoop); aLoop.play().catch(function () {}); }
+      if (!switched) { aIntro.currentTime = intro.currentTime || 0; fadeIn(aIntro); aIntro.play().catch(function () {}); }
+      else { aLoop.currentTime = loop.currentTime || 0; fadeIn(aLoop); aLoop.play().catch(function () {}); }
     } else { aIntro.pause(); aLoop.pause(); }
   });
-  aIntro.addEventListener('ended', function () { if (soundOn) { aLoop.currentTime = 0; aLoop.play().catch(function () {}); } });
+  aIntro.addEventListener('ended', function () { if (soundOn) { aLoop.currentTime = loop.currentTime || 0; aLoop.play().catch(function () {}); } });
 
   // ===== Поделиться =====
   var storyFile = null;
