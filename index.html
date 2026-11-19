@@ -66,11 +66,14 @@
          display:flex;align-items:center;justify-content:center;color:#E9C98F;cursor:pointer}
   .sound svg{width:20px;height:20px}
   .sound .wave{display:none}.sound.on .wave{display:block}.sound.on .mute{display:none}
-  .play{position:absolute;z-index:6;left:50%;top:38%;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;display:none;
+  .play{position:absolute;z-index:6;left:50%;top:50%;width:92px;height:92px;margin:-46px 0 0 -46px;border-radius:50%;display:flex;transition:opacity .4s,transform .4s;
         border:1px solid rgba(216,183,135,.8);background:rgba(10,12,20,.4);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
         align-items:center;justify-content:center;color:#E9C98F;cursor:pointer;animation:pulse 2s ease-in-out infinite}
   .play svg{width:34px;height:34px;margin-left:4px}
   @keyframes pulse{50%{transform:scale(1.07)}}
+  .play.hide{opacity:0;pointer-events:none}
+  .gate{position:absolute;inset:0;z-index:5;background:rgba(7,11,18,.35);transition:opacity .6s}
+  .gate.hide{opacity:0;pointer-events:none}
   @media (max-height:720px){h1{font-size:clamp(24px,7.2vw,34px);margin-bottom:14px}.btn{height:48px}.btn.tall{height:56px}.ui{padding-bottom:calc(12px + env(safe-area-inset-bottom))}}
   @media (prefers-reduced-motion:reduce){h1 .w>span,.btn,.stores{transition:none}}
 </style>
@@ -81,7 +84,7 @@
   <video id="loop" muted playsinline loop preload="auto">
     <source src="loop.mp4" type="video/mp4"><source src="loop.webm" type="video/webm">
   </video>
-  <video id="intro" muted playsinline autoplay preload="auto" poster="poster.jpg">
+  <video id="intro" muted playsinline preload="auto" poster="poster.jpg">
     <source src="intro.mp4" type="video/mp4"><source src="intro.webm" type="video/webm">
   </video>
   <canvas id="grain" width="160" height="284"></canvas>
@@ -117,6 +120,7 @@
     </div>
     <p class="hint" id="hint"></p>
   </div>
+  <div class="gate" id="gate"></div>
   <button class="play" id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button>
 </div>
 
@@ -129,6 +133,7 @@
   var SUPABASE_URL = '';        // например 'https://ekbkyrgyz.site'
   var SUPABASE_ANON_KEY = '';   // публичный publishable-ключ, как на /app
 
+  var soundOn = false;
   var BASE = 'https://suyun46kg-boop.github.io/ekbkg-share/';
   var SHARE_URL = BASE + '?s=share';
   var qs = new URLSearchParams(location.search);
@@ -181,7 +186,6 @@
       switched = true;
       loop.currentTime = 0; loop.play().catch(function () {});
       intro.style.opacity = 0;
-      if (soundOn) { aLoop.currentTime = 0; aLoop.play().catch(function () {}); }
     }
   });
   intro.addEventListener('ended', function () {
@@ -189,20 +193,22 @@
     showUI();
   });
   // На всякий случай — показать интерфейс через 6 сек в любом случае
-  setTimeout(showUI, 6000);
 
-  var playBtn = document.getElementById('play'), started = false;
-  intro.addEventListener('playing', function () { started = true; playBtn.style.display = 'none'; });
-  function start() {
-    var p = intro.play();
-    if (p && p.catch) p.catch(function () { if (!started) { playBtn.style.display = 'flex'; showUI(); } });
+  var playBtn = document.getElementById('play'), gate = document.getElementById('gate'), started = false;
+  intro.load(); loop.load();
+  function begin() {
+    if (started) return; started = true;
+    playBtn.classList.add('hide'); gate.classList.add('hide');
+    soundOn = true; soundBtn.classList.add('on');
+    intro.currentTime = 0;
+    var p = intro.play(); if (p && p.catch) p.catch(function () {});
+    aIntro.currentTime = 0; aIntro.volume = 1; aIntro.play().catch(function () {});
+    // разблокировать второй звук на iOS тем же нажатием
+    var pl = aLoop.play(); if (pl && pl.then) pl.then(function () { aLoop.pause(); aLoop.currentTime = 0; }).catch(function () {});
+    log('play_click');
   }
-  playBtn.addEventListener('click', function (e) { e.stopPropagation(); playBtn.style.display = 'none'; intro.play().catch(function () {}); loop.load(); });
-  // Любое первое касание экрана тоже запускает видео (не мешая кнопкам)
-  function firstTouch() { if (!started) { intro.play().catch(function () {}); } document.removeEventListener('touchstart', firstTouch); }
-  document.addEventListener('touchstart', firstTouch, { passive: true });
-  intro.load(); loop.load(); start();
-  setTimeout(function () { if (!started) { playBtn.style.display = 'flex'; showUI(); } }, 2500);
+  playBtn.addEventListener('click', function (e) { e.stopPropagation(); begin(); });
+  gate.addEventListener('click', begin);
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden && switched) loop.play().catch(function () {});
   });
@@ -225,7 +231,7 @@
 
   // ===== Звук =====
   var aIntro = document.getElementById('aIntro'), aLoop = document.getElementById('aLoop');
-  var soundBtn = document.getElementById('sound'), soundOn = false;
+  var soundBtn = document.getElementById('sound');
   function fadeIn(a) { a.volume = 0; var v = 0; var t = setInterval(function () { v += 0.1; a.volume = Math.min(1, v); if (v >= 1) clearInterval(t); }, 50); }
   soundBtn.addEventListener('click', function () {
     soundOn = !soundOn; soundBtn.classList.toggle('on', soundOn);
