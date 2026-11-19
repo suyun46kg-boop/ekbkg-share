@@ -66,7 +66,11 @@
          display:flex;align-items:center;justify-content:center;color:#E9C98F;cursor:pointer}
   .sound svg{width:20px;height:20px}
   .sound .wave{display:none}.sound.on .wave{display:block}.sound.on .mute{display:none}
-  .tap{position:absolute;inset:0;z-index:7;display:none}
+  .play{position:absolute;z-index:6;left:50%;top:38%;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;display:none;
+        border:1px solid rgba(216,183,135,.8);background:rgba(10,12,20,.4);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+        align-items:center;justify-content:center;color:#E9C98F;cursor:pointer;animation:pulse 2s ease-in-out infinite}
+  .play svg{width:34px;height:34px;margin-left:4px}
+  @keyframes pulse{50%{transform:scale(1.07)}}
   @media (max-height:720px){h1{font-size:clamp(24px,7.2vw,34px);margin-bottom:14px}.btn{height:48px}.btn.tall{height:56px}.ui{padding-bottom:calc(12px + env(safe-area-inset-bottom))}}
   @media (prefers-reduced-motion:reduce){h1 .w>span,.btn,.stores{transition:none}}
 </style>
@@ -75,10 +79,10 @@
 <div class="stage" id="stage">
   <div class="poster"></div>
   <video id="loop" muted playsinline loop preload="auto">
-    <source src="loop.webm" type="video/webm"><source src="loop.mp4" type="video/mp4">
+    <source src="loop.mp4" type="video/mp4"><source src="loop.webm" type="video/webm">
   </video>
   <video id="intro" muted playsinline autoplay preload="auto" poster="poster.jpg">
-    <source src="intro.webm" type="video/webm"><source src="intro.mp4" type="video/mp4">
+    <source src="intro.mp4" type="video/mp4"><source src="intro.webm" type="video/webm">
   </video>
   <canvas id="grain" width="160" height="284"></canvas>
   <div class="shade"></div>
@@ -113,7 +117,7 @@
     </div>
     <p class="hint" id="hint"></p>
   </div>
-  <div class="tap" id="tap"></div>
+  <button class="play" id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button>
 </div>
 
 <audio id="aIntro" src="intro_sound.m4a" preload="auto"></audio>
@@ -166,7 +170,7 @@
 
   // ===== Видео =====
   var intro = document.getElementById('intro'), loop = document.getElementById('loop'), ui = document.getElementById('ui');
-  var stage = document.getElementById('stage'), tap = document.getElementById('tap');
+  var stage = document.getElementById('stage');
   var shown = false, switched = false;
   function showUI() { if (!shown) { shown = true; stage.classList.add('on'); } }
 
@@ -187,14 +191,18 @@
   // На всякий случай — показать интерфейс через 6 сек в любом случае
   setTimeout(showUI, 6000);
 
-  function tryPlay() {
+  var playBtn = document.getElementById('play'), started = false;
+  intro.addEventListener('playing', function () { started = true; playBtn.style.display = 'none'; });
+  function start() {
     var p = intro.play();
-    if (p && p.catch) p.catch(function () {
-      tap.style.display = 'block'; showUI();
-    });
+    if (p && p.catch) p.catch(function () { if (!started) { playBtn.style.display = 'flex'; showUI(); } });
   }
-  tap.addEventListener('click', function () { tap.style.display = 'none'; intro.play().catch(function () {}); });
-  loop.load(); tryPlay();
+  playBtn.addEventListener('click', function (e) { e.stopPropagation(); playBtn.style.display = 'none'; intro.play().catch(function () {}); loop.load(); });
+  // Любое первое касание экрана тоже запускает видео (не мешая кнопкам)
+  function firstTouch() { if (!started) { intro.play().catch(function () {}); } document.removeEventListener('touchstart', firstTouch); }
+  document.addEventListener('touchstart', firstTouch, { passive: true });
+  intro.load(); loop.load(); start();
+  setTimeout(function () { if (!started) { playBtn.style.display = 'flex'; showUI(); } }, 2500);
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden && switched) loop.play().catch(function () {});
   });
