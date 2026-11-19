@@ -264,6 +264,7 @@
 
   document.getElementById('wa').addEventListener('click', function () {
     buzz(); log('wa_click');
+    say('WhatsApp → «Менин статусум»');
     var text = '🇰🇬 ' + SHARE_URL;
     if (canFile()) navigator.share({ files: [storyFile], text: text }).catch(function () {});
     else location.href = 'https://wa.me/?text=' + encodeURIComponent(text);
