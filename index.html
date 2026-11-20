@@ -100,6 +100,7 @@
     storyFile = new File([b], 'kyrgyz.jpg', { type: 'image/jpeg' });
   }).catch(function () {});
   function canFile() { return storyFile && navigator.canShare && navigator.canShare({ files: [storyFile] }); }
+  var MSG = '🇰🇬 EKBKG- приложениясын ушул жерден жүктөп алыңыз жана досторунуз менен бөлүшүңүз 👇\n' + SHARE_URL;
   function buzz() { if (navigator.vibrate) navigator.vibrate(10); }
   var hint = document.getElementById('hint');
   function say(t, ms) { hint.textContent = t; hint.classList.add('show'); clearTimeout(say.t); say.t = setTimeout(function () { hint.classList.remove('show'); }, ms || 3200); }
@@ -118,13 +119,13 @@
 
   document.getElementById('wa').addEventListener('click', function () {
     buzz(); log('wa_click');
-    location.href = 'https://wa.me/?text=' + encodeURIComponent('🇰🇬 EKBKG- приложениясын ушул жерден жүктөп алыңыз жана досторунуз менен бөлүшүңүз 👇\n' + SHARE_URL);
+    location.href = 'https://wa.me/?text=' + encodeURIComponent(MSG);
   });
 
   document.getElementById('ig').addEventListener('click', function () {
     buzz(); log('ig_click');
-    copy(SHARE_URL);
-    say('Тизмеден Instagram → «Окуя» тандаңыз. Шилтеме көчүрүлдү — «Шилтеме» стикерине чаптаңыз', 9000);
+    copy(MSG);
+    say('Текст жана шилтеме көчүрүлдү. Instagram → «Окуя» тандаңыз, анан «Aa» же «Шилтеме» стикерине чаптаңыз', 9000);
     if (canFile()) navigator.share({ files: [storyFile] }).catch(function () {});
     else {
       var a = document.createElement('a'); a.href = 'story.jpg'; a.download = 'kyrgyz.jpg'; document.body.appendChild(a); a.click(); a.remove();
