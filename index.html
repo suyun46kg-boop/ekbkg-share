@@ -271,10 +271,14 @@
     buzz(); log('ig_click');
     copy(SHARE_URL);
     say('Шилтеме көчүрүлдү — сторисиңизге «Шилтеме» стикерин кошуңуз');
-    if (canFile()) navigator.share({ files: [storyFile] }).catch(function () {});
-    else {
-      var a = document.createElement('a'); a.href = 'story.jpg'; a.download = 'kyrgyz.jpg'; document.body.appendChild(a); a.click(); a.remove();
-    }
+    // Сразу открываем камеру историй Instagram; если приложения нет — сайт Instagram
+    var left = false;
+    function gone() { left = true; }
+    document.addEventListener('visibilitychange', gone, { once: true });
+    window.addEventListener('pagehide', gone, { once: true });
+    location.href = 'instagram://story-camera';
+    // На iPhone Safari сам спросит «Открыть в Instagram?», поэтому запасной переход только для Android
+    if (platform !== 'ios') setTimeout(function () { if (!left && !document.hidden) location.href = 'https://www.instagram.com/'; }, 1800);
   });
 
   var IOS = 'https://apps.apple.com/app/id6790087427';
